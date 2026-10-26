@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.ipynb_checkpoints/
+
+# Dataset and private medical data
+data/
+*.dcm
+*.nii
+*.nii.gz
+
+# Trained model artifacts can be large; manage separately for deployment
+models/*.keras
+models/*.h5
+models/*.weights.h5
+!models/.gitkeep
+
+# Outputs
+results/
+*.log
