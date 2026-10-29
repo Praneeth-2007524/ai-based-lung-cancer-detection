@@ -21,3 +21,13 @@ models/*.weights.h5
 # Outputs
 results/
 *.log
+
+# Frontend dependencies
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
+frontend/.env.*.local
+
+# Python environments
+backend/.venv/
+backend/venv/

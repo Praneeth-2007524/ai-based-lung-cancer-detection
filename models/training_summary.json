@@ -1,0 +1,9 @@
+{
+  "class_names": [
+    "Benign",
+    "Malignant",
+    "Normal"
+  ],
+  "test_loss": 0.8286575675010681,
+  "test_accuracy": 0.6144578456878662
+}

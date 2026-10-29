@@ -1,0 +1,2 @@
+Copy your trained file `models/lung_cancer_model.keras` into this folder.
+The final path must be `backend/models/lung_cancer_model.keras`.

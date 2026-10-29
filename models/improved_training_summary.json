@@ -1,0 +1,10 @@
+{
+  "class_names": [
+    "Benign",
+    "Malignant",
+    "Normal"
+  ],
+  "test_loss": 0.9258865118026733,
+  "test_accuracy": 0.5963855385780334,
+  "epochs_completed": 10
+}
