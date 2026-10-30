@@ -1,7 +1,4 @@
-Set-Location "C:\Users\kanur\Downloads\lung-cancer-medical-image-project\lung-cancer-medical-image-project"
-
-@'
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+﻿@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
   font-family: Inter, Arial, sans-serif;
@@ -456,4 +453,3 @@ button:disabled {
     transition: none !important;
   }
 }
-'@ | Set-Content -Encoding UTF8 ".\frontend\src\styles.css"
