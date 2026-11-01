@@ -1,4 +1,5 @@
 
+import base64
 import io
 import os
 from pathlib import Path
@@ -189,6 +190,89 @@ def preprocess_image(raw_bytes: bytes) -> np.ndarray:
             ),
         ) from exc
 
+
+def make_gradcam_images(image_batch: np.ndarray, raw_bytes: bytes, class_index: int):
+    """
+    Create an explanatory Grad-CAM heatmap for the selected class.
+    This visualizes model attention; it is not a tumour segmentation mask.
+    """
+    try:
+        conv_layers = [
+            layer for layer in model.layers
+            if isinstance(layer, tf.keras.layers.Conv2D)
+        ]
+        if not conv_layers:
+            return None
+
+        last_conv = conv_layers[-1]
+        grad_model = tf.keras.Model(
+            inputs=model.inputs,
+            outputs=[last_conv.output, model.output],
+        )
+
+        with tf.GradientTape() as tape:
+            conv_outputs, predictions = grad_model(
+                image_batch, training=False
+            )
+            class_score = predictions[:, class_index]
+
+        gradients = tape.gradient(class_score, conv_outputs)
+        if gradients is None:
+            return None
+
+        pooled_gradients = tf.reduce_mean(
+            gradients, axis=(0, 1, 2)
+        )
+        feature_maps = conv_outputs[0]
+        heatmap = tf.reduce_sum(
+            feature_maps * pooled_gradients, axis=-1
+        )
+        heatmap = tf.maximum(heatmap, 0)
+        maximum = tf.reduce_max(heatmap)
+        heatmap = tf.where(
+            maximum > 0,
+            heatmap / (maximum + tf.keras.backend.epsilon()),
+            tf.zeros_like(heatmap),
+        )
+        heatmap_array = heatmap.numpy()
+
+        # Resize attention map to the uploaded image dimensions.
+        heatmap_image = Image.fromarray(
+            np.uint8(np.clip(heatmap_array, 0, 1) * 255)
+        ).resize(IMAGE_SIZE, Image.Resampling.BILINEAR)
+        heat = np.asarray(heatmap_image, dtype=np.float32) / 255.0
+
+        # Lightweight JET-style colour map, avoiding extra dependencies.
+        red = np.clip(1.5 - np.abs(4 * heat - 3), 0, 1)
+        green = np.clip(1.5 - np.abs(4 * heat - 2), 0, 1)
+        blue = np.clip(1.5 - np.abs(4 * heat - 1), 0, 1)
+        colour = np.stack([red, green, blue], axis=-1)
+        colour_image = Image.fromarray(
+            np.uint8(colour * 255), mode="RGB"
+        )
+
+        original = Image.open(io.BytesIO(raw_bytes)).convert("RGB")
+        original = original.resize(IMAGE_SIZE, Image.Resampling.BILINEAR)
+        overlay = Image.blend(original, colour_image, alpha=0.38)
+
+        def encode_png(image):
+            buffer = io.BytesIO()
+            image.save(buffer, format="PNG")
+            return base64.b64encode(buffer.getvalue()).decode("ascii")
+
+        return {
+            "heatmap_image": "data:image/png;base64," + encode_png(colour_image),
+            "overlay_image": "data:image/png;base64," + encode_png(overlay),
+            "visualization_note": (
+                "Grad-CAM highlights image regions that influenced this model output. "
+                "It is not a tumour boundary, lesion segmentation, or measurement "
+                "of affected lung area."
+            ),
+        }
+    except Exception as exc:
+        print("Grad-CAM generation unavailable:", str(exc))
+        return None
+
 # --------------------------------------------------
 # 8. PREDICTION ENDPOINT
 # --------------------------------------------------
@@ -287,7 +371,11 @@ async def predict(file: UploadFile = File(...)):
             )
         }
 
-        return {
+        gradcam = make_gradcam_images(
+            image_batch, raw_bytes, predicted_index
+        )
+
+        response_data = {
             "success": True,
             "predicted_class": predicted_class,
             "confidence": round(confidence, 4),
@@ -299,6 +387,14 @@ async def predict(file: UploadFile = File(...)):
                 "Do not use it to make health decisions."
             ),
         }
+        if gradcam:
+            response_data.update(gradcam)
+        else:
+            response_data["visualization_note"] = (
+                "Grad-CAM could not be generated for this model. "
+                "No affected-area segmentation is available."
+            )
+        return response_data
 
     except HTTPException:
         raise
