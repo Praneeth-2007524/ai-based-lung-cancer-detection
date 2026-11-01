@@ -126,6 +126,8 @@ export default function App() {
       `Image: ${file?.name || 'Uploaded scan'}`,
       `Predicted class: ${result.predicted_class}`,
       `Model confidence: ${safeConfidence.toFixed(2)}%`,
+      `Visual explanation: ${result.visualization_note || 'Not available'}`,
+      'Important: Grad-CAM is an AI attention explanation, not a tumour segmentation or cancer-risk measurement.',
       ...(scores.length ? ['Class scores:', ...scores.map(([name, value]) => {
         const numeric = Number(value);
         const pct = toPercentage(numeric);
@@ -339,6 +341,38 @@ export default function App() {
                     })}
                   </div>
                 )}
+
+                <section className="gradcam-section" aria-label="Model attention visualization">
+                  <div className="gradcam-heading">
+                    <div className="section-kicker">03 / MODEL EXPLANATION</div>
+                    <h3>Image attention visualization</h3>
+                    <p>Compare the uploaded scan with the model attention map and overlay.</p>
+                  </div>
+                  <div className="gradcam-grid">
+                    <figure>
+                      <img src={previewUrl} alt="Original uploaded CT image" />
+                      <figcaption>Original image</figcaption>
+                    </figure>
+                    {result.heatmap_image ? (
+                      <figure>
+                        <img src={result.heatmap_image} alt="Grad-CAM model attention heatmap" />
+                        <figcaption>Grad-CAM heatmap</figcaption>
+                      </figure>
+                    ) : (
+                      <figure className="gradcam-unavailable">
+                        <div>Heatmap unavailable</div>
+                        <figcaption>No compatible convolution layer found</figcaption>
+                      </figure>
+                    )}
+                    {result.overlay_image ? (
+                      <figure>
+                        <img src={result.overlay_image} alt="Grad-CAM attention overlay on original image" />
+                        <figcaption>Attention overlay</figcaption>
+                      </figure>
+                    ) : null}
+                  </div>
+                  <p className="gradcam-disclaimer">{result.visualization_note || 'Grad-CAM is an AI attention explanation, not a confirmed tumour location, segmentation mask, or measurement of affected lung area.'}</p>
+                </section>
                 <div className="report-actions">
                   <button type="button" className="button button-primary" onClick={downloadReport}>↓ Download report</button>
                   <button type="button" className="button" onClick={shareReport}>↗ Share report</button>
